@@ -59,11 +59,6 @@ public class NioServer {
                         socketChannel.register(selector, SelectionKey.OP_READ);
                     }
 
-                    //测试此通道是否完成对其套接字的连接
-                    if (key.isConnectable()){
-                        System.out.println("连接成功！");
-                    }
-
                     //可读
                     if (key.isReadable()) {
                         readData(key);

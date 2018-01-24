@@ -20,7 +20,7 @@ public class NioServer_new {
     private Selector receiveMsgSelector = null;
     private Charset charset = Charset.forName("UTF-8");
 
-    public void init() throws IOException {
+    public void init() throws IOException, InterruptedException {
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         selector = Selector.open();
         receiveMsgSelector = Selector.open();
@@ -29,7 +29,7 @@ public class NioServer_new {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         System.out.println("server is ready...");
 
-        new ReceiveMsg().start();
+       // new ReceiveMsg().start();
 
         while (true) {
             try {
@@ -41,11 +41,16 @@ public class NioServer_new {
                 while (it.hasNext()) {
                     SelectionKey key = it.next();
                     if (key.isAcceptable()) {
-                        ServerSocketChannel server = (ServerSocketChannel) key.channel();
-                        SocketChannel socketChannel = server.accept();
-                        socketChannel.configureBlocking(false);
-                        System.out.println(socketChannel.getRemoteAddress() + " 连接成功.");
-                        socketChannel.register(receiveMsgSelector, SelectionKey.OP_READ);
+                       try{
+                           ServerSocketChannel server = (ServerSocketChannel) key.channel();
+                           SocketChannel socketChannel = server.accept();
+                           socketChannel.configureBlocking(false);
+                           System.out.println(socketChannel.getRemoteAddress() + " 连接成功.");
+                           socketChannel.register(selector, SelectionKey.OP_READ);
+                           new SendMsg(socketChannel).start();
+                       } catch (Exception e){
+                           e.printStackTrace();
+                       }
                     }
 
                     if (key.isReadable()) {
@@ -60,56 +65,48 @@ public class NioServer_new {
                         System.out.println("客户端说：" + content);
                     }
                 }
+                it.remove();
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                Thread.sleep(100);
             }
         }
     }
 
 
-
-private class ReceiveMsg extends Thread {
-
-    @Override
-    public void run() {
-        System.out.println("服务器接收消息线程启动...");
-
-        while (true) {
-            try {
-                //筛选出一个准备就绪的IO组
-                int n = receiveMsgSelector.select();
-                if (n <= 0) {
-                    continue;
-                }
-
-                //获取所有注册在selector上的selectionKey
-                Iterator<SelectionKey> it = receiveMsgSelector.selectedKeys().iterator();
-                while (it.hasNext()) {
-                    SelectionKey key = it.next();
-                    //可读
-                    if (key.isWritable()) {
-                        //获取此selectionKey绑定的通道
-                        SocketChannel sc = (SocketChannel) key.channel();
-                        Scanner scanner = new Scanner(System.in);
-                        String content = scanner.next();
-                        sc.write(charset.encode(content));
-                        //重新添加一个读事件
-                        key.interestOps(SelectionKey.OP_READ);
+    class SendMsg extends Thread{
+        private SocketChannel socketChannel;
+        public SendMsg(SocketChannel socketChannel){
+            this.socketChannel = socketChannel;
+        }
+        @Override
+        public void run() {
+            while (true){
+                Scanner scanner = new Scanner(System.in);
+                String content = "";
+                if (scanner.hasNextLine()){
+                    content = scanner.next();
+                    try {
+                        socketChannel.write(charset.encode(content));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
-                    it.remove();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }
-
-}
 
     public static void main(String[] args) {
         try {
             new NioServer_new().init();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

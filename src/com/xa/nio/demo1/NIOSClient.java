@@ -51,7 +51,7 @@ import java.io.IOException;
                 while (true) {  
                     selector.select();  
                     Set<SelectionKey> keySet = selector.selectedKeys();  
-                    for (final SelectionKey key : keySet) {  
+                    for (SelectionKey key : keySet) {
                         handle(key);  
                     }  
                     ;  
